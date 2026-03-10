@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Sparkle Text Lab</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #050509;
+            color: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            padding: 24px;
+        }
+        .app {
+            width: 100%;
+            max-width: 1200px;
+            background: radial-gradient(circle at top, #141424 0, #050509 60%);
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.8);
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr);
+            gap: 0;
+            overflow: hidden;
+        }
+        @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
+        .left { padding: 24px 24px 20px; border-right: 1px solid rgba(255,255,255,0.06); }
+        .right { padding: 24px 24px 20px; background: radial-gradient(circle at top, #101018 0, #020207 70%); }
+        h1 { font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
+        .subtitle { font-size: 13px; color: #a0a3c2; margin-bottom: 18px; }
+        label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #a0a3c2; margin-bottom: 4px; display: block; }
+        input[type="text"], input[type="color"], select {
+            width: 100%; padding: 8px 10px; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(5,5,12,0.9); color: #f5f5f5; font-size: 14px; outline: none;
+        }
+        input:focus, select:focus { border-color: #7f5dff; box-shadow: 0 0 0 1px rgba(127,93,255,0.3); }
+        .field { margin-bottom: 12px; }
+        .row { display: flex; gap: 12px; }
+        .row > .field { flex: 1; }
+        .btn-row { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+        button {
+            border-radius: 999px; padding: 8px 14px; border: none; font-size: 13px; font-weight: 500;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-primary { background: linear-gradient(135deg,#7f5dff,#ff51c8); color: #fff; }
+        .btn-secondary { background: rgba(13,13,25,0.95); color: #d0d3ff; border: 1px solid rgba(255,255,255,0.08); }
+        .hint { margin-top: 8px; font-size: 11px; color: #8184a8; }
+        .preview-wrapper { height: 100%; display: flex; flex-direction: column; }
+        .preview-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #a0a3c2; margin-bottom: 4px; }
+        .preview-bg {
+            position: relative; flex: 1; border-radius: 14px; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+            background-image:
+                linear-gradient(45deg, #14141a 25%, transparent 25%),
+                linear-gradient(-45deg, #14141a 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #14141a 75%),
+                linear-gradient(-45deg, transparent 75%, #14141a 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        canvas { max-width: 100%; max-height: 100%; }
+        .preview-meta { margin-top: 8px; font-size: 11px; color: #7d80ab; display: flex; justify-content: space-between; }
+        .chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: rgba(5,5,18,0.9); border: 1px solid rgba(255,255,255,0.1); font-size: 11px; color: #c2c5ff; }
+        .download-link { display: inline-block; margin-top: 8px; color: #7f5dff; font-size: 13px; }
+        .download-link:hover { color: #ff51c8; }
+        .sparkle-preview { width: 48px; height: 48px; display: block; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); object-fit: contain; }
+        .progress-overlay {
+            position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85); z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 16px; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        .progress-overlay.visible { opacity: 1; pointer-events: auto; }
+        .progress-overlay .progress-label { font-size: 14px; color: #a0a3c2; }
+        .progress-overlay .progress-bar-wrap {
+            width: 280px; height: 8px; background: rgba(255,255,255,0.1);
+            border-radius: 999px; overflow: hidden;
+        }
+        .progress-overlay .progress-bar-fill {
+            height: 100%; background: linear-gradient(90deg,#7f5dff,#ff51c8);
+            border-radius: 999px; width: 0%; transition: width 0.1s;
+        }
+        .progress-overlay .save-btn {
+            display: none; padding: 10px 20px; border-radius: 999px;
+            background: linear-gradient(135deg,#7f5dff,#ff51c8); color: #fff;
+            font-weight: 500; cursor: pointer; border: none; font-size: 14px;
+        }
+        .progress-overlay.ready .save-btn { display: inline-block; }
+        .progress-overlay .close-btn { margin-top: 8px; background: none; border: none; color: #8184a8; font-size: 12px; cursor: pointer; }
+        .progress-overlay .close-btn:hover { color: #c2c5ff; }
+        .css-preview-wrap { display: none; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 300px; }
+        .css-preview-wrap.active { display: flex; }
+        .css-preview-text { position: relative; display: inline-block; font-weight: bold; text-transform: uppercase; text-shadow: 0 0 2px currentColor, 0 0 8px currentColor; }
+        .css-preview-text .sparkle-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-repeat: repeat; pointer-events: none; z-index: 1; }
+        .preview-bg.canvas-mode .css-preview-wrap { display: none !important; }
+        .preview-bg.canvas-mode .canvas-wrap { display: flex; align-items: center; justify-content: center; }
+        .sparkle-gif-src { width: 64px; height: 64px; display: none; object-fit: contain; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); }
+        .sparkle-gif-src.visible { display: block !important; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script type="module">
+    import { parseGIF, decompressFrames } from 'https://esm.sh/gifuct-js@2.1.2';
+    window.parseGIF = parseGIF;
+    window.decompressFrames = decompressFrames;
+    </script>
+    <script src="q_effects.js"></script>
+    <script src="fonts.js"></script>
+</head>
+<body>
+    <div id="progress-overlay" class="progress-overlay">
+        <span class="progress-label" id="progress-label">Recording...</span>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill"></div></div>
+        <a class="save-btn" id="progress-save-btn" href="#" download style="text-decoration:none;text-align:center;">Click to save</a>
+        <button type="button" class="close-btn" id="progress-close-btn">Close</button>
+    </div>
+    <div class="app">
+        <div class="left">
+            <h1>Sparkle Text Lab</h1>
+            <div class="subtitle">Procedural sparkle (no image) + gradient animation. Transparent PNG & WebM.</div>
+
+            <div class="field">
+                <label for="text">Text</label>
+                <input id="text" type="text" value="exiled" maxlength="24" />
+            </div>
+
+            <div class="row">
+                <div class="field" style="flex:2;">
+                    <label for="fontFamily">Font</label>
+                    <select id="fontFamily"></select>
+                </div>
+                <div class="field" style="flex:1;">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn-secondary" id="btn-upload-font">Upload font (.ttf/.otf/.woff)</button>
+                    <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" style="display:none;" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label for="fontSize">Font Size</label>
+                    <input id="fontSize" type="text" value="64" />
+                </div>
+                <div class="field">
+                    <label for="effect">Effect</label>
+                    <select id="effect">
+                        <option value="sparkle">Sparkle only</option>
+                        <option value="gradient">Gradient only</option>
+                        <option value="both">Sparkle + Gradient</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="textStyle">Text Style</label>
+                    <select id="textStyle"></select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label for="sparkleVariant">Sparkle variant</label>
+                    <select id="sparkleVariant">
+                        <option value="white">White (GIF)</option>
+                        <option value="green">Green (GIF)</option>
+                        <option value="blue">Blue (GIF)</option>
+                        <option value="red">Red (GIF)</option>
+                    </select>
+                </div>
+                <div class="field" id="sparkle-preview-field" style="display:none;">
+                    <label>Sparkle preview</label>
+                    <img id="sparkle-gif-img" class="sparkle-gif-src" alt="" crossorigin="anonymous" />
+                </div>
+            <div class="field">
+                <label for="textColor">Text / Sparkle color</label>
+                <input id="textColor" type="color" value="#ffffff" />
+            </div>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label for="speed">Animation speed</label>
+                    <input id="speed" type="range" min="0.1" max="3" step="0.1" value="1" />
+                </div>
+                <div class="field">
+                    <label for="duration">WebM duration (ms)</label>
+                    <input id="duration" type="text" value="2000" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label for="primaryColor">Gradient Color 1</label>
+                    <input id="primaryColor" type="color" value="#ff00ff" />
+                </div>
+                <div class="field">
+                    <label for="secondaryColor">Gradient Color 2</label>
+                    <input id="secondaryColor" type="color" value="#00ffff" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="color3">Gradient Color 3</label>
+                    <input id="color3" type="color" value="#ffffff" />
+                </div>
+                <div class="field">
+                    <label for="color4">Gradient Color 4</label>
+                    <input id="color4" type="color" value="#ffcc00" />
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn-primary" id="btn-render">Render</button>
+                <button class="btn-secondary" id="btn-download">Download PNG</button>
+                <button class="btn-secondary" id="btn-anim">Download Animation (WEBM)</button>
+            </div>
+            <div id="webm-download-holder"></div>
+            <div class="hint">1000+ Google Fonts + custom upload (TTF/OTF/WOFF). Transparent PNG & WebM.</div>
+        </div>
+
+        <div class="right">
+            <div class="preview-wrapper">
+                <div class="preview-label">Preview (transparent)</div>
+                <div class="preview-bg canvas-mode" id="preview-bg">
+                    <div class="canvas-wrap">
+                        <canvas id="canvas" width="512" height="512"></canvas>
+                    </div>
+                    <div class="css-preview-wrap" id="css-preview-wrap">
+                        <div class="css-preview-text" id="css-preview-text">
+                            <span id="css-preview-span">EXILED</span>
+                            <div class="sparkle-overlay" id="sparkle-overlay"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="preview-meta">
+                    <span class="chip" id="meta-effect">—</span>
+                    <span class="chip" id="meta-size"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var textInput = document.getElementById("text");
+            var fontFamilySelect = document.getElementById("fontFamily");
+            var fontFileInput = document.getElementById("fontFile");
+            var btnUploadFont = document.getElementById("btn-upload-font");
+            var fontSizeInput = document.getElementById("fontSize");
+            var textColorInput = document.getElementById("textColor");
+            var effectSelect = document.getElementById("effect");
+            var speedInput = document.getElementById("speed");
+            var durationInput = document.getElementById("duration");
+            var primaryColorInput = document.getElementById("primaryColor");
+            var secondaryColorInput = document.getElementById("secondaryColor");
+            var color3Input = document.getElementById("color3");
+            var color4Input = document.getElementById("color4");
+            var textStyleSelect = document.getElementById("textStyle");
+            var btnRender = document.getElementById("btn-render");
+            var btnDownload = document.getElementById("btn-download");
+            var btnAnim = document.getElementById("btn-anim");
+            var metaEffect = document.getElementById("meta-effect");
+            var metaSize = document.getElementById("meta-size");
+            var canvas = document.getElementById("canvas");
+            var ctx = canvas.getContext("2d");
+            var previewBg = document.querySelector(".preview-bg");
+            var CHECKERBOARD_BG =
+                "linear-gradient(45deg, #14141a 25%, transparent 25%)," +
+                "linear-gradient(-45deg, #14141a 25%, transparent 25%)," +
+                "linear-gradient(45deg, transparent 75%, #14141a 75%)," +
+                "linear-gradient(-45deg, transparent 75%, #14141a 75%)";
+            previewBg.style.backgroundImage = CHECKERBOARD_BG;
+
+            var currentPhase = 0;
+            var sparkleVariantSelect = document.getElementById("sparkleVariant");
+            var sparkleUrls = { green: "https://assets.guns.lol/sparkle_green.gif", blue: "https://assets.guns.lol/sparkle_blue.gif", red: "https://assets.guns.lol/sparkle_red.gif", white: "https://assets.guns.lol/sparkle_white.gif", yellow: "https://assets.guns.lol/sparkle_yellow.gif" };
+
+            var previewBgEl = document.getElementById("preview-bg");
+            var cssPreviewWrap = document.getElementById("css-preview-wrap");
+            var cssPreviewText = document.getElementById("css-preview-text");
+            var cssPreviewSpan = document.getElementById("css-preview-span");
+            var sparkleOverlay = document.getElementById("sparkle-overlay");
+
+            var sparkleGifImg = document.getElementById("sparkle-gif-img");
+            var sparklePreviewField = document.getElementById("sparkle-preview-field");
+            var FALLBACK_FONTS = ["Roboto","Open Sans","Lato","Montserrat","Oswald","Raleway","Poppins","Bebas Neue","Playfair Display","Source Sans Pro","Ubuntu","Nunito","Merriweather","Barlow","Inter","Fjalla One","Anton","Rubik","Work Sans","PT Sans","Roboto Condensed","Dancing Script","Pacifico","Lobster","Bangers","Righteous","Archivo","Noto Sans","Mukta","Quicksand","Karla","Inconsolata","Fira Sans","Oxygen","Crimson Text","Libre Baskerville","Libre Franklin","IBM Plex Sans","IBM Plex Serif","Space Grotesk","Space Mono","JetBrains Mono","DM Sans","DM Serif Display","Outfit","Syne","Sora"];
+            function addFontOptions(list) {
+                fontFamilySelect.innerHTML = '<option value="Segoe UI">Segoe UI (default)</option>';
+                if (list && list.length > 0) {
+                    var frag = document.createDocumentFragment();
+                    for (var i = 0; i < list.length; i++) {
+                        var o = document.createElement("option"); o.value = list[i]; o.textContent = list[i]; frag.appendChild(o);
+                    }
+                    fontFamilySelect.appendChild(frag);
+                }
+            }
+            function populateFonts() {
+                if (!fontFamilySelect) return;
+                addFontOptions(FALLBACK_FONTS);
+                if (typeof window.loadGoogleFontsList === "function") {
+                    window.loadGoogleFontsList().then(function (list) {
+                        if (list && list.length > 0) addFontOptions(list);
+                    });
+                }
+            }
+            function addCustomFontOption(name) {
+                if (!fontFamilySelect || !name) return;
+                var o = document.createElement("option"); o.value = name; o.textContent = name + " (uploaded)"; o.selected = true;
+                fontFamilySelect.insertBefore(o, fontFamilySelect.options[1] || null);
+            }
+            function getCurrentFontFamily() {
+                var v = (fontFamilySelect && fontFamilySelect.value || "").trim();
+                return v || "Segoe UI";
+            }
+            btnUploadFont.addEventListener("click", function () { fontFileInput.click(); });
+            fontFileInput.addEventListener("change", function () {
+                var f = fontFileInput.files && fontFileInput.files[0];
+                if (!f) return;
+                var name = (f.name || "Custom Font").replace(/\.(ttf|otf|woff2?)$/i, "").replace(/[-_]/g, " ");
+                if (typeof window.loadCustomFont === "function") window.loadCustomFont(f, name);
+                addCustomFontOption(name);
+                render(currentPhase);
+            });
+            function loadAndRenderFont() {
+                var fam = getCurrentFontFamily();
+                if (fam && fam !== "Segoe UI" && typeof window.loadGoogleFont === "function") {
+                    window.loadGoogleFont(fam).then(function () { render(currentPhase); });
+                } else { render(currentPhase); }
+            }
+            fontFamilySelect.addEventListener("change", loadAndRenderFont);
+
+            function populateTextStyles() {
+                if (!window.TEXT_STYLES || !textStyleSelect) return;
+                textStyleSelect.innerHTML = "";
+                var groups = {};
+                for (var i = 0; i < window.TEXT_STYLES.length; i++) {
+                    var s = window.TEXT_STYLES[i];
+                    if (!groups[s.g]) { groups[s.g] = document.createElement("optgroup"); groups[s.g].label = s.g; textStyleSelect.appendChild(groups[s.g]); }
+                    var o = document.createElement("option"); o.value = s.v; o.textContent = s.l; groups[s.g].appendChild(o);
+                }
+            }
+            var gifFrames = [];
+            var gifFrameIndex = 0;
+            var gifFrameTime = 0;
+            var gifLastTimestamp = 0;
+            var gifLoadId = 0;
+            var gifLoadedVariant = "";
+            var gifFrameCanvas = document.createElement("canvas");
+            var gifFrameCtx = gifFrameCanvas.getContext("2d");
+            var GIF_MIN_DELAY = 50;
+            function loadGifFrames(url, variant) {
+                gifFrames = [];
+                gifLoadedVariant = "";
+                if (!url || !window.parseGIF || !window.decompressFrames) return;
+                var thisLoadId = ++gifLoadId;
+                function doFetch(u) {
+                    return fetch(u, { mode: "cors", credentials: "omit", cache: "no-store" })
+                        .then(function (r) {
+                            if (!r.ok) throw new Error("Fetch failed");
+                            return r.arrayBuffer();
+                        });
+                }
+                doFetch(url).then(function (buf) {
+                        if (thisLoadId !== gifLoadId) return;
+                        var gif = window.parseGIF(buf);
+                        var frames = window.decompressFrames(gif, true);
+                        if (thisLoadId !== gifLoadId) return;
+                        gifFrames = frames;
+                        gifLoadedVariant = variant;
+                        gifFrameIndex = 0;
+                        gifFrameTime = 0;
+                        gifLastTimestamp = 0;
+                        if (gifFrames.length > 0 && gifFrameCtx) {
+                            var f = gifFrames[0];
+                            gifFrameCanvas.width = f.dims.width;
+                            gifFrameCanvas.height = f.dims.height;
+                        }
+                        render(currentPhase);
+                    })
+                    .catch(function () {
+                        if (thisLoadId !== gifLoadId) return;
+                        doFetch("https://corsproxy.io/?" + encodeURIComponent(url)).then(function (buf) {
+                            if (thisLoadId !== gifLoadId) return;
+                            var gif = window.parseGIF(buf);
+                            var frames = window.decompressFrames(gif, true);
+                            if (thisLoadId !== gifLoadId) return;
+                            gifFrames = frames;
+                            gifLoadedVariant = variant;
+                            gifFrameIndex = 0;
+                            gifFrameTime = 0;
+                            gifLastTimestamp = 0;
+                            if (gifFrames.length > 0 && gifFrameCtx) {
+                                var f = gifFrames[0];
+                                gifFrameCanvas.width = f.dims.width;
+                                gifFrameCanvas.height = f.dims.height;
+                            }
+                            render(currentPhase);
+                        }).catch(function () {
+                            if (thisLoadId === gifLoadId) { gifFrames = []; render(currentPhase); }
+                        });
+                    });
+            }
+            function setPreviewMode(variant) {
+                previewBgEl.classList.add("canvas-mode");
+                var isGif = variant && variant !== "procedural";
+                if (isGif && sparkleUrls[variant]) {
+                    var url = sparkleUrls[variant];
+                    sparkleGifImg.onload = function () { render(currentPhase); };
+                    sparkleGifImg.onerror = function () {
+                        sparkleGifImg.onerror = null;
+                        sparkleGifImg.crossOrigin = "";
+                        sparkleGifImg.src = url + (url.indexOf("?") >= 0 ? "&" : "?") + "_=" + Date.now();
+                    };
+                    sparkleGifImg.crossOrigin = "anonymous";
+                    sparkleGifImg.src = url;
+                    sparkleGifImg.classList.add("visible");
+                    sparklePreviewField.style.display = "block";
+                    loadGifFrames(url, variant);
+                } else {
+                    sparkleGifImg.src = "";
+                    sparkleGifImg.classList.remove("visible");
+                    sparklePreviewField.style.display = "none";
+                    gifFrames = [];
+                }
+            }
+            function updateCssPreview() {
+                var text = (textInput.value || "").trim().toUpperCase();
+                if (!text) text = "EXILED";
+                var fontSize = parseInt(fontSizeInput.value, 10);
+                if (!fontSize || fontSize < 16) fontSize = 64;
+                var effect = effectSelect.value || "sparkle";
+                var textColor = textColorInput.value || "#ffffff";
+                cssPreviewSpan.textContent = text;
+                cssPreviewText.style.fontSize = fontSize + "px";
+                cssPreviewText.style.fontFamily = '"Segoe UI", system-ui, Arial, sans-serif';
+                cssPreviewText.style.color = textColor;
+                if (effect === "gradient" || effect === "both") {
+                    var colors = [primaryColorInput.value, secondaryColorInput.value, color3Input.value, color4Input.value].filter(Boolean);
+                    if (colors.length === 0) colors = ["#ff00ff", "#00ffff", "#ffffff"];
+                    var hueShift = currentPhase * 360;
+                    var gradColors = colors.map(function(hex) {
+                        var rgb = hexToRgb(hex);
+                        if (!rgb) return hex;
+                        var hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+                        return hslToHex((hsl.h + hueShift) % 360, hsl.s, hsl.l);
+                    });
+                    cssPreviewText.style.background = "linear-gradient(90deg," + gradColors.join(",") + ")";
+                    cssPreviewText.style.webkitBackgroundClip = "text";
+                    cssPreviewText.style.backgroundClip = "text";
+                    cssPreviewText.style.color = "transparent";
+                } else {
+                    cssPreviewText.style.background = "none";
+                    cssPreviewText.style.webkitBackgroundClip = "";
+                    cssPreviewText.style.backgroundClip = "";
+                    cssPreviewText.style.color = textColor;
+                }
+            }
+
+            function clearCanvas() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            function hexToRgb(hex) {
+                if (!hex) return null;
+                var h = hex.replace("#", "");
+                if (h.length === 3) h = h.split("").map(function(c){ return c+c; }).join("");
+                if (h.length !== 6) return null;
+                var r = parseInt(h.slice(0, 2), 16);
+                var g = parseInt(h.slice(2, 4), 16);
+                var b = parseInt(h.slice(4, 6), 16);
+                if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+                return { r: r, g: g, b: b };
+            }
+            function rgbToHsl(r, g, b) {
+                r /= 255; g /= 255; b /= 255;
+                var max = Math.max(r, g, b), min = Math.min(r, g, b);
+                var h, s, l = (max + min) / 2;
+                if (max === min) { h = s = 0; } else {
+                    var d = max - min;
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                    switch (max) {
+                        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                        case g: h = (b - r) / d + 2; break;
+                        default: h = (r - g) / d + 4;
+                    }
+                    h /= 6;
+                }
+                return { h: h * 360, s: s * 100, l: l * 100 };
+            }
+            function hslToHex(h, s, l) {
+                s /= 100; l /= 100;
+                var a = s * Math.min(l, 1 - l);
+                var f = function(n) {
+                    var k = (n + h / 30) % 12;
+                    return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+                };
+                var r = Math.round(f(0) * 255), g = Math.round(f(8) * 255), b = Math.round(f(4) * 255);
+                return "#" + [r, g, b].map(function(x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+            }
+
+            function render(phase) {
+                if (phase === undefined) phase = currentPhase;
+                var variant = sparkleVariantSelect.value || "procedural";
+                var text = (textInput.value || "").trim();
+                if (!text) text = "exiled";
+                text = text.toUpperCase();
+                var fontSize = parseInt(fontSizeInput.value, 10);
+                if (!fontSize || fontSize < 16) fontSize = 64;
+                var textColor = textColorInput.value || "#ffffff";
+                var effect = effectSelect.value || "sparkle";
+
+                clearCanvas();
+                previewBg.style.backgroundImage = CHECKERBOARD_BG;
+
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                var fontFamily = getCurrentFontFamily();
+                var baseFont = 'bold ' + fontSize + 'px "' + fontFamily.replace(/"/g, "'") + '", "Segoe UI", system-ui, Arial, sans-serif';
+                ctx.font = baseFont;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                var metrics = ctx.measureText(text);
+                var textWidth = metrics.width || 1;
+                var textHeight = fontSize;
+                var halfW = textWidth / 2;
+                var halfH = textHeight / 2;
+
+                var useGradient = (effect === "gradient" || effect === "both");
+                var useSparkle = (effect === "sparkle" || effect === "both");
+                var addWhiteGlow = (effect === "both");
+                var textStyle = textStyleSelect.value || "default";
+
+                var rawColors = [primaryColorInput.value, secondaryColorInput.value, color3Input.value, color4Input.value].filter(Boolean);
+                if (rawColors.length === 0) rawColors = ["#ff00ff", "#00ffff", "#ffffff"];
+                var hueShift = phase * 360;
+                var colors = rawColors.map(function(hex) {
+                    var rgb = hexToRgb(hex);
+                    if (!rgb) return hex;
+                    var hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+                    return hslToHex((hsl.h + hueShift) % 360, hsl.s, hsl.l);
+                });
+                var x0 = -halfW * 1.2, y0 = 0, x1 = halfW * 1.2, y1 = 0;
+                var grad = ctx.createLinearGradient(x0, y0, x1, y1);
+                var n = colors.length;
+                for (var i = 0; i < n; i++) {
+                    grad.addColorStop(n === 1 ? 0.5 : i / (n - 1), colors[i]);
+                }
+
+                if (textStyle !== "default" && typeof window.applyTextStyle === "function") {
+                    window.applyTextStyle(textStyle, ctx, text, {
+                        phase: phase, colors: colors, textColor: textColor, grad: useGradient ? grad : null,
+                        halfW: halfW, halfH: halfH, fontSize: fontSize,
+                        canvasWidth: canvas.width, canvasHeight: canvas.height
+                    });
+                } else if (useGradient) {
+                    ctx.strokeStyle = "rgba(0,0,0,0.4)";
+                    ctx.lineWidth = fontSize * 0.04;
+                    ctx.strokeText(text, 0, 0);
+                    if (addWhiteGlow) {
+                        ctx.shadowColor = colors[Math.floor(colors.length / 2)] || colors[0];
+                        ctx.shadowBlur = 14;
+                    }
+                    ctx.fillStyle = grad;
+                    ctx.fillText(text, 0, 0);
+                    if (addWhiteGlow) ctx.shadowBlur = 0;
+                } else {
+                    ctx.fillStyle = textColor;
+                    if (addWhiteGlow) {
+                        ctx.shadowColor = "#ffffff";
+                        ctx.shadowBlur = 12;
+                    } else {
+                        ctx.shadowColor = textColor;
+                        ctx.shadowBlur = 12;
+                    }
+                    ctx.fillText(text, 0, 0);
+                    ctx.shadowBlur = 0;
+                }
+
+                if (useSparkle) {
+                    ctx.globalCompositeOperation = "source-atop";
+                    if (variant === "procedural") {
+                        var sparkleColor = textColorInput.value || "#ffffff";
+                        var t = (phase * Math.PI * 2) * 3;
+                        var cell = 6;
+                        var rx = halfW + 24;
+                        var ry = halfH + 24;
+                        for (var py = -ry; py <= ry; py += cell) {
+                            for (var px = -rx; px <= rx; px += cell) {
+                                var flicker = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t + px * 0.08 + py * 0.06));
+                                ctx.fillStyle = sparkleColor;
+                                ctx.globalAlpha = flicker;
+                                ctx.beginPath();
+                                ctx.arc(px, py, 2, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        }
+                        ctx.globalAlpha = 1;
+                    } else if (gifFrames.length > 0 && gifFrameCtx) {
+                        var now = performance.now();
+                        if (gifLastTimestamp > 0) gifFrameTime += Math.min(200, now - gifLastTimestamp);
+                        gifLastTimestamp = now;
+                        while (gifFrames.length > 0) {
+                            var rawDelay = gifFrames[gifFrameIndex].delay;
+                            var delayMs = typeof rawDelay === "number" ? rawDelay : 50;
+                            if (delayMs > 0 && delayMs < 30) delayMs = delayMs * 10;
+                            var fd = Math.max(GIF_MIN_DELAY, delayMs);
+                            if (gifFrameTime < fd) break;
+                            gifFrameTime -= fd;
+                            gifFrameIndex = (gifFrameIndex + 1) % gifFrames.length;
+                        }
+                        var frame = gifFrames[gifFrameIndex];
+                        var sw = frame.dims.width;
+                        var sh = frame.dims.height;
+                        if (sw > 0 && sh > 0 && frame.patch) {
+                            gifFrameCanvas.width = sw;
+                            gifFrameCanvas.height = sh;
+                            var imgData = new ImageData(frame.patch instanceof Uint8ClampedArray ? frame.patch : new Uint8ClampedArray(frame.patch), sw, sh);
+                            gifFrameCtx.putImageData(imgData, 0, 0);
+                            var rx = halfW + sw * 2;
+                            var ry = halfH + sh * 2;
+                            for (var py = -ry; py <= ry; py += sh) {
+                                for (var px = -rx; px <= rx; px += sw) {
+                                    ctx.drawImage(gifFrameCanvas, px, py, sw, sh);
+                                }
+                            }
+                        }
+                    }
+                    ctx.globalCompositeOperation = "source-over";
+                }
+
+                ctx.restore();
+                metaEffect.textContent = effect === "both" ? "Sparkle + Gradient" : (effect === "gradient" ? "Gradient" : "Sparkle");
+                metaSize.textContent = canvas.width + "×" + canvas.height + ", " + fontSize + "px";
+            }
+
+            btnRender.addEventListener("click", function () { render(currentPhase); });
+
+            textInput.addEventListener("input", function () { render(currentPhase); });
+            fontSizeInput.addEventListener("input", function () { render(currentPhase); });
+            textColorInput.addEventListener("input", function () { render(currentPhase); });
+            effectSelect.addEventListener("change", function () { render(currentPhase); });
+            textStyleSelect.addEventListener("change", function () { render(currentPhase); });
+            sparkleVariantSelect.addEventListener("change", function () { setPreviewMode(sparkleVariantSelect.value); render(currentPhase); });
+            speedInput.addEventListener("input", function () { render(currentPhase); });
+            durationInput.addEventListener("input", function () {});
+            primaryColorInput.addEventListener("input", function () { render(currentPhase); });
+            secondaryColorInput.addEventListener("input", function () { render(currentPhase); });
+            color3Input.addEventListener("input", function () { render(currentPhase); });
+            color4Input.addEventListener("input", function () { render(currentPhase); });
+
+            var progressOverlay = document.getElementById("progress-overlay");
+            var progressLabel = document.getElementById("progress-label");
+            var progressFill = document.getElementById("progress-fill");
+            var progressSaveBtn = document.getElementById("progress-save-btn");
+            var progressCloseBtn = document.getElementById("progress-close-btn");
+
+            function showProgress(text, pct) {
+                progressOverlay.classList.add("visible");
+                progressOverlay.classList.remove("ready");
+                progressSaveBtn.onclick = null;
+                progressSaveBtn.href = "#";
+                progressLabel.textContent = text;
+                progressFill.style.width = (pct || 0) + "%";
+            }
+            function hideProgress() {
+                progressOverlay.classList.remove("visible", "ready");
+                progressSaveBtn.onclick = null;
+                progressSaveBtn.href = "#";
+            }
+            function showSaveReady(filename, blob) {
+                progressOverlay.classList.add("visible", "ready");
+                progressLabel.textContent = "Ready! Click below to save.";
+                progressFill.style.width = "100%";
+                var ext = filename.split(".").pop();
+                var url = URL.createObjectURL(blob);
+                progressSaveBtn.href = url;
+                progressSaveBtn.download = filename;
+                progressSaveBtn.textContent = "Save " + filename;
+                progressSaveBtn.style.display = "inline-block";
+                progressSaveBtn.onclick = function (e) {
+                    if (typeof showSaveFilePicker !== "undefined") {
+                        e.preventDefault();
+                        var types = ext === "png"
+                            ? [{ accept: { "image/png": [".png"] } }]
+                            : [{ accept: { "video/webm": [".webm"] } }];
+                        showSaveFilePicker({ suggestedName: filename, types: types })
+                            .then(function (handle) {
+                                return handle.createWritable().then(function (w) {
+                                    return w.write(blob).then(function () { return w.close(); });
+                                });
+                            })
+                            .then(function () { URL.revokeObjectURL(url); hideProgress(); })
+                            .catch(function (err) {
+                                if (err.name !== "AbortError") {
+                                    var a = document.createElement("a");
+                                    a.href = url;
+                                    a.download = filename;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                    hideProgress();
+                                }
+                            });
+                    } else {
+                        setTimeout(function () { URL.revokeObjectURL(url); hideProgress(); }, 2000);
+                    }
+                };
+            }
+            progressCloseBtn.addEventListener("click", hideProgress);
+
+            btnDownload.addEventListener("click", function () {
+                render(currentPhase);
+                showProgress("Preparing PNG...", 50);
+                function doPngFromCanvas() {
+                    try {
+                        var url = canvas.toDataURL("image/png");
+                        var blob = (function (dataUrl) {
+                            var arr = dataUrl.split(","), m = arr[0].match(/:(.*?);/);
+                            var bstr = atob(arr[1]), n = bstr.length, u8 = new Uint8Array(n);
+                            for (var i = 0; i < n; i++) u8[i] = bstr.charCodeAt(i);
+                            return new Blob([u8], { type: m ? m[1] : "image/png" });
+                        })(url);
+                        showSaveReady("sparkle_text.png", blob);
+                    } catch (e) {
+                        hideProgress();
+                        alert("PNG export failed: " + (e.message || e) + ". If using GIF sparkles, ensure images load with CORS.");
+                    }
+                }
+                setTimeout(doPngFromCanvas, 100);
+            });
+
+            function animationLoop(timestamp) {
+                var speed = parseFloat(speedInput.value || "1") || 1;
+                var basePeriod = 25000;
+                currentPhase = ((timestamp * speed) % basePeriod) / basePeriod;
+                render(currentPhase);
+                requestAnimationFrame(animationLoop);
+            }
+
+            btnAnim.addEventListener("click", function () {
+                if (!canvas.captureStream || typeof MediaRecorder === "undefined") {
+                    alert("Animation recording not supported in this browser.");
+                    return;
+                }
+                var durationMs = parseInt(durationInput.value, 10) || 2000;
+                if (durationMs < 500) durationMs = 500;
+                if (durationMs > 10000) durationMs = 10000;
+                var fps = 30;
+                var stream = canvas.captureStream(fps);
+                var recorder;
+                try {
+                    recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp9" });
+                } catch (e) {
+                    try { recorder = new MediaRecorder(stream, { mimeType: "video/webm" }); } catch (e2) {
+                        alert("Cannot start MediaRecorder for WebM animation.");
+                        return;
+                    }
+                }
+                var chunks = [];
+                recorder.ondataavailable = function (e) {
+                    if (e.data && e.data.size > 0) chunks.push(e.data);
+                };
+                recorder.onstop = function () {
+                    showProgress("Processing video...", 95);
+                    requestAnimationFrame(function () {
+                        var blob = new Blob(chunks, { type: "video/webm" });
+                        if (blob.size === 0) {
+                            hideProgress();
+                            alert("Recording produced empty file. Try again.");
+                            return;
+                        }
+                        showSaveReady("sparkle_text.webm", blob);
+                    });
+                };
+                recorder.start(100);
+                showProgress("Recording... 0%", 0);
+                var startTime = performance.now();
+                function updateRecordingProgress() {
+                    var elapsed = performance.now() - startTime;
+                    var pct = Math.min(99, Math.round((elapsed / durationMs) * 100));
+                    progressLabel.textContent = "Recording... " + pct + "%";
+                    progressFill.style.width = pct + "%";
+                    if (recorder.state === "recording" && elapsed < durationMs) {
+                        requestAnimationFrame(updateRecordingProgress);
+                    }
+                }
+                requestAnimationFrame(updateRecordingProgress);
+                setTimeout(function () {
+                    if (recorder.state === "recording") {
+                        try { recorder.requestData(); } catch (x) {}
+                        recorder.stop();
+                    }
+                }, durationMs);
+            });
+
+            populateTextStyles();
+            populateFonts();
+            setPreviewMode(sparkleVariantSelect.value);
+            render(0);
+            requestAnimationFrame(animationLoop);
+        })();
+    </script>
+</body>
+</html>
