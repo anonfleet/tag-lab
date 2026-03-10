@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Sparkle Text Lab</title>
+    <title>Tag Effects Lab</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -122,7 +122,7 @@
     </div>
     <div class="app">
         <div class="left">
-            <h1>Sparkle Text Lab</h1>
+            <h1>Tag Effects Lab</h1>
             <div class="subtitle">Procedural sparkle (no image) + gradient animation. Transparent PNG & WebM.</div>
 
             <div class="field">
@@ -153,6 +153,8 @@
                         <option value="sparkle">Sparkle only</option>
                         <option value="gradient">Gradient only</option>
                         <option value="both">Sparkle + Gradient</option>
+                        <option value="static_gradient">Static gradient</option>
+                        <option value="static_both">Static gradient + Sparkle</option>
                     </select>
                 </div>
                 <div class="field">
@@ -441,10 +443,11 @@
                 cssPreviewText.style.fontSize = fontSize + "px";
                 cssPreviewText.style.fontFamily = '"Segoe UI", system-ui, Arial, sans-serif';
                 cssPreviewText.style.color = textColor;
-                if (effect === "gradient" || effect === "both") {
+                var isStaticGrad = (effect === "static_gradient" || effect === "static_both");
+                if (effect === "gradient" || effect === "both" || isStaticGrad) {
                     var colors = [primaryColorInput.value, secondaryColorInput.value, color3Input.value, color4Input.value].filter(Boolean);
                     if (colors.length === 0) colors = ["#ff00ff", "#00ffff", "#ffffff"];
-                    var hueShift = currentPhase * 360;
+                    var hueShift = isStaticGrad ? 0 : currentPhase * 360;
                     var gradColors = colors.map(function(hex) {
                         var rgb = hexToRgb(hex);
                         if (!rgb) return hex;
@@ -550,14 +553,15 @@
                     halfH = textHeight / 2;
                 }
 
-                var useGradient = (effect === "gradient" || effect === "both");
-                var useSparkle = (effect === "sparkle" || effect === "both");
-                var addWhiteGlow = (effect === "both");
+                var isStaticGrad = (effect === "static_gradient" || effect === "static_both");
+                var useGradient = (effect === "gradient" || effect === "both" || isStaticGrad);
+                var useSparkle = (effect === "sparkle" || effect === "both" || effect === "static_both");
+                var addWhiteGlow = (effect === "both" || effect === "static_both");
                 var textStyle = textStyleSelect.value || "default";
 
                 var rawColors = [primaryColorInput.value, secondaryColorInput.value, color3Input.value, color4Input.value].filter(Boolean);
                 if (rawColors.length === 0) rawColors = ["#ff00ff", "#00ffff", "#ffffff"];
-                var hueShift = phase * 360;
+                var hueShift = isStaticGrad ? 0 : phase * 360;
                 var colors = rawColors.map(function(hex) {
                     var rgb = hexToRgb(hex);
                     if (!rgb) return hex;
@@ -654,7 +658,7 @@
                 }
 
                 ctx.restore();
-                metaEffect.textContent = effect === "both" ? "Sparkle + Gradient" : (effect === "gradient" ? "Gradient" : "Sparkle");
+                metaEffect.textContent = effect === "both" ? "Sparkle + Gradient" : effect === "static_both" ? "Static gradient + Sparkle" : effect === "static_gradient" ? "Static gradient" : (effect === "gradient" ? "Gradient" : "Sparkle");
                 metaSize.textContent = canvas.width + "×" + canvas.height + ", " + fontSize + "px";
             }
 
